@@ -2,15 +2,19 @@ import os
 import openai
 import base64
 import streamlit as st
-from pdf2image import convert_from_path
-from io import BytesIO
+
 import json
+import fitz
+import logging
 
 
 from dotenv import load_dotenv
 load_dotenv()
 
 openai.api_key = os.getenv('OPEN_AI_API_KEY')  # Replace with your actual key
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Streamlit app layout
 st.title("Invoice Extractor")
@@ -69,8 +73,14 @@ def query_using_image(dynamic_prams):
 def forming_dynamic_prompt(excl_input,lines_input):
     return f"{{excl:[{excl_input}],lines:{lines_input}}}"
 
-print(" here is the formed prompt object")
-print(forming_dynamic_prompt(excl_input,lines_input))
+def convert_pdf_to_images(pdf_path):
+    doc = fitz.open(pdf_path)
+    images = []
+    for page in doc:
+        pix = page.get_pixmap()
+        img_bytes = pix.tobytes("png")
+        images.append(img_bytes)
+    return images
 
 
 
@@ -79,42 +89,27 @@ if uploaded_file:
         temp_pdf_path = "temp_uploaded.pdf"
         with open(temp_pdf_path, "wb") as temp_file:
             temp_file.write(uploaded_file.read())
-            print(uploaded_file.read())
 
-        images = convert_from_path(temp_pdf_path)
-        for i, img in enumerate(images):
-            # Convert the Pillow image to bytes
-            buffered = BytesIO()
-            img.save(buffered, format="PNG")
-            img_bytes = buffered.getvalue()
 
-            # Encode the bytes to base64
+        images = convert_pdf_to_images(temp_pdf_path)
+        for i, img_bytes in enumerate(images):
+            # Instead of saving to a buffer, we directly base64 encode the image bytes
             encoded_image = base64.b64encode(img_bytes).decode("utf-8")
-            dynamic_params = forming_dynamic_prompt(excl_input,lines_input)
-            print(" \n  PROMPT \n")
-            print(f"""Extract product/service line_items from the provided image-based on the following parameters:
-                                meta = {dynamic_params} #very important 
-                                * Exclude columns listed in the meta.excl array from the response !important.
-                                * response contains only the no of items specified in meta.lines  !important.
-                                           Instructions:
-                                           1. extract each and every columns !important !important !important
-                                           2. There can columns which contains sub columns in that case name a key as columnName_SubColumnName !important
-                                           5. Return a JSON object in the defined output_format.
-                                           6. If token limits are exceeded, return:
-                                              {{"extraction_status": false}}
-                                           7. valid output should be in format without any prefix/suffix like ```json```:
-                                              {{"status":true,"data":[]}}
-                                           8. only data in tabular format is required
-                                           """)
-            print(" \n  Response \n")
+
+            # Forming dynamic params for your request
+            dynamic_params = forming_dynamic_prompt(excl_input, lines_input)
 
             response = query_using_image(dynamic_params).choices[0]
-            print(response)
+            logger.info("Response generated successfully")
+            logger.info(response)
 
     # data conversion
     content_string = response['message']['content']
     content_data = json.loads(content_string)
     invoice_details = content_data['data']
+
+
+
     status = content_data['status']
 
     if status:
