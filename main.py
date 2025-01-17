@@ -1,4 +1,3 @@
-import os
 import openai
 import base64
 import streamlit as st
@@ -8,11 +7,10 @@ import fitz
 import logging
 
 
-from dotenv import load_dotenv
-load_dotenv()
+openai.api_key = st.secrets["openai"]["api_key"]  # Replace with your actual key
 
-openai.api_key = os.getenv('OPEN_AI_API_KEY')  # Replace with your actual key
 
+print("key here\n")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 

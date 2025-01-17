@@ -18,3 +18,5 @@ __pycache__/
 *.log
 *.tmp
 *.bak
+
+.streamlit/secrets.toml
