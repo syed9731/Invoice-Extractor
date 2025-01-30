@@ -10,7 +10,6 @@ import logging
 openai.api_key = st.secrets["openai"]["api_key"]  # Replace with your actual key
 
 
-print("key here\n")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -54,7 +53,8 @@ def query_using_image(dynamic_prams):
                                 5. only data in tabular format is required
                                 7. There can columns which contains sub columns in that case name a key as columnName_SubColumnName
                                 8. If a subfield  is missing for a parent field, set its value to null in the JSON. Do not create the subfield if the parent field itself is entirely absent in the table.
-                                8.If the table has columns that follow a hierarchical or grouped structure, create them as objects in the JSON. Dynamically group subfields under their respective parent fields 
+                                8. If the table has columns that follow a hierarchical or grouped structure, create them as objects in the JSON. Dynamically group subfields under their respective parent fields 
+                                9. extract all numerical fields as string
                         """},
                     {
                         "type": "image_url",
@@ -103,6 +103,8 @@ if uploaded_file:
 
     # data conversion
     content_string = response['message']['content']
+
+    print(content_string)
     content_data = json.loads(content_string)
     invoice_details = content_data['data']
 
@@ -110,10 +112,10 @@ if uploaded_file:
 
     status = content_data['status']
 
-    if status:
-        st.success("Extraction Successful! ✅")
-    else:
-        st.error("There is an error occurs during extraction-process system return with the status Failed! ❌")
+    # if status:
+    #     st.success("Extraction Successful! ✅")
+    # else:
+    #     st.error("There is an error occurs during extraction-process system return with the status Failed! ❌")
 
     formatted_content = json.dumps(invoice_details, indent=4, ensure_ascii=False)
 
