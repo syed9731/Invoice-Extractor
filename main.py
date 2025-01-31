@@ -28,7 +28,7 @@ excl_input = st.text_area(
 )
 
 # Input for the 'lines' value
-lines_input = st.number_input("Enter the number of lines:", min_value=1, value=1)
+lines_input = st.number_input("Enter the number of lines:", min_value=1, value=2)
 
 # Create the ChatCompletion request
 def query_using_image(dynamic_prams):
@@ -44,16 +44,15 @@ def query_using_image(dynamic_prams):
                         * Exclude columns listed in the meta.excl array from the response !important.
                         * response contains only the no of items specified in meta.lines  !important.
                                 Instructions:
-                                1. extract each and every columns
+                                1. extract each and every columns and do not include null or empty column in response 
                                 2. Return a JSON object in the defined output_format.
                                 3. If token limits are exceeded, return:
                                    {{"extraction_status": false}}
                                 4. valid output should be in format without any prefix/suffix like ```json```:
                                    {{"status":true,"data":[]}}
                                 5. only data in tabular format is required
-                                7. There can columns which contains sub columns in that case name a key as columnName_SubColumnName
+                                6. If the table has columns that follow a hierarchical or grouped structure, create them as objects in the JSON. Dynamically group subfields under their respective parent fields 
                                 8. If a subfield  is missing for a parent field, set its value to null in the JSON. Do not create the subfield if the parent field itself is entirely absent in the table.
-                                8. If the table has columns that follow a hierarchical or grouped structure, create them as objects in the JSON. Dynamically group subfields under their respective parent fields 
                                 9. extract all numerical fields as string
                         """},
                     {
