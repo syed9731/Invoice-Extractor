@@ -6,11 +6,17 @@ import json
 import fitz
 import logging
 
+import os
+# from dotenv import load_dotenv
 from fastapi import FastAPI, File, UploadFile, HTTPException
 
 app = FastAPI()
 
-openai.api_key = st.secrets["openai"]["api_key"]  # Replace with your actual key
+# openai.api_key = st.secrets["openai"]["api_key"]  # Replace with your actual key
+
+# load_dotenv()  # Load from .env file
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 logger = logging.getLogger(__name__)
@@ -144,55 +150,55 @@ async def extract_invoice(file: UploadFile = File(...)):
 
 
 
-
-if uploaded_file:
-    with st.spinner("Converting PDF to images..."):
-        temp_pdf_path = "temp_uploaded.pdf"
-        with open(temp_pdf_path, "wb") as temp_file:
-            temp_file.write(uploaded_file.read())
-
-
-        images = convert_pdf_to_images(temp_pdf_path)
-        for i, img_bytes in enumerate(images):
-            # Instead of saving to a buffer, we directly base64 encode the image bytes
-            encoded_image = base64.b64encode(img_bytes).decode("utf-8")
-
-            # Forming dynamic params for your request
-            dynamic_params = forming_dynamic_prompt(0, 0)
-
-            response = query_using_image(dynamic_params,encoded_image).choices[0]
-
-            print("the response goes here")
-
-            print(response)
-
-
-
-            logger.info("Response generated successfully")
-            logger.info(response)
-
-    # data conversion
-    content_string = response['message']['content']
-
-    print(content_string)
-    content_data = json.loads(content_string)
-    invoice_details = content_data['data']
-
-
-
-    status = content_data['status']
-
-    if status:
-        st.success("Extraction Successful! ✅")
-    else:
-        st.error("There is an error occurs during extraction-process system return with the status Failed! ❌")
-
-    formatted_content = json.dumps(invoice_details, indent=4, ensure_ascii=False)
-
-    # Convert the extracted data to a formatted JSON string
-    st.text_area(
-            "JSON Output",
-            value=formatted_content,
-            height=600,
-
-        )
+#
+# if uploaded_file:
+#     with st.spinner("Converting PDF to images..."):
+#         temp_pdf_path = "temp_uploaded.pdf"
+#         with open(temp_pdf_path, "wb") as temp_file:
+#             temp_file.write(uploaded_file.read())
+#
+#
+#         images = convert_pdf_to_images(temp_pdf_path)
+#         for i, img_bytes in enumerate(images):
+#             # Instead of saving to a buffer, we directly base64 encode the image bytes
+#             encoded_image = base64.b64encode(img_bytes).decode("utf-8")
+#
+#             # Forming dynamic params for your request
+#             dynamic_params = forming_dynamic_prompt(0, 0)
+#
+#             response = query_using_image(dynamic_params,encoded_image).choices[0]
+#
+#             print("the response goes here")
+#
+#             print(response)
+#
+#
+#
+#             logger.info("Response generated successfully")
+#             logger.info(response)
+#
+#     # data conversion
+#     content_string = response['message']['content']
+#
+#     print(content_string)
+#     content_data = json.loads(content_string)
+#     invoice_details = content_data['data']
+#
+#
+#
+#     status = content_data['status']
+#
+#     if status:
+#         st.success("Extraction Successful! ✅")
+#     else:
+#         st.error("There is an error occurs during extraction-process system return with the status Failed! ❌")
+#
+#     formatted_content = json.dumps(invoice_details, indent=4, ensure_ascii=False)
+#
+#     # Convert the extracted data to a formatted JSON string
+#     st.text_area(
+#             "JSON Output",
+#             value=formatted_content,
+#             height=600,
+#
+#         )
