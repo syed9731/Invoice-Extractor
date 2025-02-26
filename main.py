@@ -6,6 +6,9 @@ import json
 import fitz
 import logging
 
+from fastapi import FastAPI, File, UploadFile, HTTPException
+
+app = FastAPI()
 
 openai.api_key = st.secrets["openai"]["api_key"]  # Replace with your actual key
 
@@ -31,7 +34,7 @@ excl_input = st.text_area(
 lines_input = st.number_input("Enter the number of lines:", min_value=1, value=2)
 
 # Create the ChatCompletion request
-def query_using_image(dynamic_prams):
+def query_using_image(dynamic_params,encoded_image):
     return openai.ChatCompletion.create(
         model="gpt-4o-mini",  # Use the model which supports image input
         messages=[
@@ -44,16 +47,19 @@ def query_using_image(dynamic_prams):
                         * Exclude columns listed in the meta.excl array from the response !important.
                         * response contains only the no of items specified in meta.lines  !important.
                                 Instructions:
-                                1. extract each and every columns and do not include null or empty column in response 
+                                0. extracted data should have fully qualified column name
+                                1. extract each and every columns and do not include null or empty column in response   
                                 2. Return a JSON object in the defined output_format.
                                 3. If token limits are exceeded, return:
                                    {{"extraction_status": false}}
                                 4. valid output should be in format without any prefix/suffix like ```json```:
                                    {{"status":true,"data":[]}}
-                                5. only data in tabular format is required
+                                5. put tabular data under name table-(n : order of appearence) and other data in under prop called general-info(which contains invoice related details)
                                 6. If the table has columns that follow a hierarchical or grouped structure, create them as objects in the JSON. Dynamically group subfields under their respective parent fields 
                                 8. If a subfield  is missing for a parent field, set its value to null in the JSON. Do not create the subfield if the parent field itself is entirely absent in the table.
                                 9. extract all numerical fields as string
+                                10. 
+                                
                         """},
                     {
                         "type": "image_url",
@@ -79,6 +85,64 @@ def convert_pdf_to_images(pdf_path):
         images.append(img_bytes)
     return images
 
+def convert_pdf_to_images_ad(pdf_bytes: bytes):
+    try:
+        if not pdf_bytes:
+            raise ValueError("Empty PDF file received")
+
+        # Open PDF from bytes
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+
+        images = []
+        for page_num in range(len(doc)):  # Iterate over each page
+            page = doc[page_num]
+            pix = page.get_pixmap()
+            img_bytes = pix.tobytes("png")  # Convert to PNG
+            images.append(img_bytes)
+
+        if not images:
+            raise ValueError("No images extracted from PDF")
+
+        return images
+    except Exception as e:
+        print(f"Error in convert_pdf_to_images: {e}")  # Debugging
+        return None
+
+@app.post("/extract")
+async def extract_invoice(file: UploadFile = File(...)):
+
+    try:
+        print("file recieved")
+        pdf_bytes = await file.read()
+
+        images = convert_pdf_to_images_ad(pdf_bytes)
+        if images is None:
+            raise HTTPException(status_code=500, detail="Failed to convert PDF to images")
+
+        for i, img_bytes in enumerate(images):
+            # Instead of saving to a buffer, we directly base64 encode the image bytes
+            encoded_image = base64.b64encode(img_bytes).decode("utf-8")
+
+            # Forming dynamic params for your request
+            dp = forming_dynamic_prompt('0', 0)
+
+            response = query_using_image(dp,encoded_image).choices[0]
+            content_string = response['message']['content']
+            content_data = json.loads(content_string)
+            status = content_data['status']
+
+            invoice_details = content_data['data']
+
+            print("the response goes here")
+
+            print(response)
+
+        return {"status": status, "response": invoice_details }
+    except Exception as e:
+        print(f"API Error: {e}")  # Debugging log
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 
 
 if uploaded_file:
@@ -94,9 +158,16 @@ if uploaded_file:
             encoded_image = base64.b64encode(img_bytes).decode("utf-8")
 
             # Forming dynamic params for your request
-            dynamic_params = forming_dynamic_prompt(excl_input, lines_input)
+            dynamic_params = forming_dynamic_prompt(0, 0)
 
-            response = query_using_image(dynamic_params).choices[0]
+            response = query_using_image(dynamic_params,encoded_image).choices[0]
+
+            print("the response goes here")
+
+            print(response)
+
+
+
             logger.info("Response generated successfully")
             logger.info(response)
 
@@ -111,10 +182,10 @@ if uploaded_file:
 
     status = content_data['status']
 
-    # if status:
-    #     st.success("Extraction Successful! ✅")
-    # else:
-    #     st.error("There is an error occurs during extraction-process system return with the status Failed! ❌")
+    if status:
+        st.success("Extraction Successful! ✅")
+    else:
+        st.error("There is an error occurs during extraction-process system return with the status Failed! ❌")
 
     formatted_content = json.dumps(invoice_details, indent=4, ensure_ascii=False)
 
