@@ -7,13 +7,16 @@ import fitz
 import logging
 
 import os
-# from dotenv import load_dotenv
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+
+from typing import Optional
+
 
 app = FastAPI()
 
 # openai.api_key = st.secrets["openai"]["api_key"]  # Replace with your actual key
-
+#
+# from dotenv import load_dotenv
 # load_dotenv()  # Load from .env file
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -115,7 +118,10 @@ def convert_pdf_to_images_ad(pdf_bytes: bytes):
         return None
 
 @app.post("/extract")
-async def extract_invoice(file: UploadFile = File(...)):
+async def extract_invoice(file: UploadFile = File(...),
+                          exclude_columns: Optional[str] = Form(""),
+                          lines_input: int = Form(10)
+                          ):
 
     try:
         print("file recieved")
@@ -130,7 +136,7 @@ async def extract_invoice(file: UploadFile = File(...)):
             encoded_image = base64.b64encode(img_bytes).decode("utf-8")
 
             # Forming dynamic params for your request
-            dp = forming_dynamic_prompt('0', 0)
+            dp = forming_dynamic_prompt(exclude_columns, lines_input)
 
             response = query_using_image(dp,encoded_image).choices[0]
             content_string = response['message']['content']
